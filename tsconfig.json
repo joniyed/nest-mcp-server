@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "ES2022",
+    "moduleResolution": "NodeNext",
+    "strictNullChecks": true,
+    "outDir": "./dist", // Ensure this points to your output directory
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "resolveJsonModule": true,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false
+  },
+  "include": ["src/**/*.ts", "mcp-stdio.ts"], // <-- Add "mcp-stdio.ts" here
+  "exclude": ["node_modules", "dist"] // Ensure 'dist' is excluded from source
+}
