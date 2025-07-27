@@ -3,16 +3,14 @@ import { McpService } from './mcp.service.js';
 
 @Controller('mcp')
 export class McpController {
-  constructor(private readonly mcpService: McpService) {
-  }
+  constructor(private readonly mcpService: McpService) {}
 
   @Post('query')
   async query(@Body() body: { prompt: string }) {
     if (!body.prompt) {
       throw new BadRequestException('Prompt is required');
     }
-    const newVar = await this.mcpService.queryLLM(body.prompt);
-    return newVar;
+    return await this.mcpService.queryLLM(body.prompt);
   }
 
   @Post()
@@ -23,5 +21,4 @@ export class McpController {
 
     return await this.mcpService.sendTextToLLM(body.prompt);
   }
-
 }

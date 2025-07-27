@@ -11,8 +11,90 @@ export class McpService {
     private readonly toolsService: ToolsService,
   ) {}
 
-  async queryLLM(prompt: string) {
-    const tools = [
+  async queryLLM(prompt: string, retryCount = 0): Promise<any> {
+    const tools = this.getTools();
+
+    try {
+      const response = await this.sendPromptToLLM(prompt, tools);
+      const data = response.data;
+
+      let res = new Map<string, any>();
+
+      if (data.message?.tool_calls?.length) {
+        for (const toolCall of data.message.tool_calls) {
+          try {
+            if (toolCall.function.name === 'sum') {
+              const { a, b } = toolCall.function.arguments;
+              const resultResponse = this.toolsService.sum({ a, b });
+              res.set('sum', resultResponse);
+            }
+
+            if (toolCall.function.name === 'sub') {
+              const { a, b } = toolCall.function.arguments;
+              const resultResponse = this.toolsService.sub({ a, b });
+              res.set('sub', resultResponse);
+            }
+
+            if (toolCall.function.name === 'executeRawQuery') {
+              const { sql, params } = toolCall.function.arguments;
+              const resultResponse = await this.toolsService.executeRawQuery(
+                sql,
+                params,
+              );
+              res.set('Query Result', resultResponse);
+            }
+          } catch (toolError) {
+            console.warn(
+              `❗ Tool execution failed for ${toolCall.function.name}:`,
+              toolError.message || toolError,
+            );
+
+            if (retryCount < 5) {
+              // Retry by calling queryLLM again with the error context
+              const retryPrompt = `An error occurred while executing the tool "${toolCall.function.name}": ${toolError.message || toolError}. Please try again or suggest an alternative.`;
+              return this.queryLLM(
+                `${retryPrompt}. Original Prompt: ${prompt}`,
+              );
+            } else {
+              return {
+                response: `Failed after retrying tool "${toolCall.function.name}".`,
+                error: toolError.message || toolError.toString(),
+              };
+            }
+          }
+        }
+
+        return Object.fromEntries(res);
+      }
+
+      return {
+        response: data.message?.content || 'No response from LLM',
+      };
+    } catch (error) {
+      console.error('Error querying LLM:', error);
+      return {
+        response: 'Failed to query LLM or execute tool',
+        error: error.message || error.toString(),
+      };
+    }
+  }
+
+  private async sendPromptToLLM(
+    prompt: string,
+    tools: any[], // Adjust type as needed, e.g., ToolDescription[]
+  ) {
+    return await firstValueFrom(
+      this.httpService.post('http://192.168.10.28:11434/api/chat', {
+        model: 'llama3.1', // Ensure this model supports tool-calling
+        messages: [{ role: 'user', content: prompt }],
+        tools,
+        stream: false, // Disable streaming for simpler handling
+      }),
+    );
+  }
+
+  private getTools() {
+    return [
       {
         type: 'function',
         function: {
@@ -38,68 +120,12 @@ export class McpService {
         },
       },
     ];
-
-    try {
-      // Send prompt to Ollama with tool descriptions
-      const response = await firstValueFrom(
-        this.httpService.post('http://192.168.68.135:11434/api/chat', {
-          model: 'llama3.1', // Ensure this model supports tool-calling
-          messages: [{ role: 'user', content: prompt }],
-          tools,
-          stream: false, // Disable streaming for simpler handling
-        }),
-      );
-
-      const data = response.data;
-
-      // Check if the LLM called a tool
-      let res: string = '';
-      if (data.message?.tool_calls?.length) {
-        for (const toolCall of data.message.tool_calls) {
-          if (toolCall.function.name === 'sum') {
-            const { a, b } = toolCall.function.arguments;
-
-            // Call your sum tool endpoint with arguments
-            const resultResponse = this.toolsService.sum({ a, b });
-
-            res += resultResponse;
-          }
-          if (toolCall.function.name === 'sub') {
-            const { a, b } = toolCall.function.arguments;
-
-            // Call your sum tool endpoint with arguments
-            const resultResponse = this.toolsService.sub({ a, b });
-
-            res += resultResponse;
-          }
-
-          if (toolCall.function.name === 'executeRawQuery') {
-            const { sql, params } = toolCall.function.arguments;
-
-            // Call your sum tool endpoint with arguments
-            return await this.toolsService.executeRawQuery(sql, params);
-          }
-        }
-        return res;
-      }
-
-      // If no tool call, return the LLM's text response
-      return {
-        response: data.message?.content || 'No response from LLM',
-      };
-    } catch (error) {
-      console.error('Error querying LLM:', error);
-      return {
-        response: 'Failed to query LLM or execute tool',
-        error: error.message || error.toString(),
-      };
-    }
   }
 
   async sendTextToLLM(prompt: string) {
     try {
       const response = await firstValueFrom(
-        this.httpService.post('http://192.168.68.135:11434/api/chat', {
+        this.httpService.post('http://192.168.10.28:11434/api/chat', {
           model: 'llama3',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
