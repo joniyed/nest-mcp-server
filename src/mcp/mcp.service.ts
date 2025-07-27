@@ -49,7 +49,7 @@ export class McpService {
               toolError.message || toolError,
             );
 
-            if (retryCount < 5) {
+            if (retryCount < 10) {
               // Retry by calling queryLLM again with the error context
               const retryPrompt = `An error occurred while executing the tool "${toolCall.function.name}": ${toolError.message || toolError}. Please try again or suggest an alternative.`;
               return this.queryLLM(
@@ -64,6 +64,9 @@ export class McpService {
           }
         }
 
+        // const result = await this.sendTextToLLM(
+        //   `Prompt: ${prompt}, Query: ${JSON.stringify(Object.fromEntries(res))}. I want this response as human readable text. Give only the response without any additional text.`,
+        // );
         return Object.fromEntries(res);
       }
 
