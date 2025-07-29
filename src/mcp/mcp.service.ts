@@ -124,7 +124,7 @@ export class McpService {
   //     ],
   //   };
   //
-  //   const GEMINI_API_KEY = 'AIzaSyD5YsRKdFhbUxcdmL8ayv2rv2GjvtZO8I0'; // Replace with env var in production
+  //   const GEMINI_API_KEY = 'GMN Secret'; // Replace with env var in production
   //   const GEMINI_ENDPOINT =
   //     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   //
