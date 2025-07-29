@@ -17,6 +17,7 @@ export class McpService {
     try {
       const response = await this.sendPromptToLLM(prompt, tools);
       const data = response.data;
+      console.log('LLM Response: ' + JSON.stringify(data.message));
 
       let res = new Map<string, any>();
 
@@ -89,12 +90,53 @@ export class McpService {
     return await firstValueFrom(
       this.httpService.post('http://192.168.10.28:11434/api/chat', {
         model: 'llama3.1', // Ensure this model supports tool-calling
-        messages: [{ role: 'user', content: prompt }],
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Context:\n' +
+              'The following is a list of user-created PostgresSQL table names from my current database schema. These are the core business/domain tables, excluding system-generated sequences or internal system tables.\n' +
+              '\n' +
+              'Postgres Tables:\n' +
+              'additional, additional_cost_summary_rules, ai_model_version_change_history, ai_model_versions, ai_models, billable_items, client_view, conditions, cost_summary_rule_tasks, cost_summary_rules, email, email_file_change_details, email_files, email_job_mappers, email_replies, email_tags, emails, external_cost_summaries, internal_views, job, job_activity, job_activity_logs, job_rule_conditions, job_rules, jobs, order_cost_summary_rules, others, package_cost_summary_rules, packages, plans, pricing, roles, rule_detail, rule_details, rule_template, rule_templates, sub_task_types, task_types, tasks, tcc_attachments, tcc_job_sales_persons, tcc_languages, tcc_master_data, tcc_projects, tcc_sync_details, tcc_task_attachments, tcc_translation_tasks, tcc_type_settings_tasks, tcc_users, user_requests, user_roles, users',
+          },
+          { role: 'user', content: prompt },
+        ],
         tools,
         stream: false, // Disable streaming for simpler handling
       }),
     );
   }
+
+  // private async sendPromptToLLM(prompt: string, tools: any[]): Promise<any> {
+  //   const context = `Context: The following is a list of user-created PostgreSQL table names from my current database schema. These are the core business/domain tables, excluding system-generated sequences or internal system tables.
+  //                    Postgres Tables: additional, additional_cost_summary_rules, ai_model_version_change_history, ai_model_versions, ai_models, billable_items, client_view, conditions, cost_summary_rule_tasks, cost_summary_rules, email, email_file_change_details, email_files, email_job_mappers, email_replies, email_tags, emails, external_cost_summaries, internal_views, job, job_activity, job_activity_logs, job_rule_conditions, job_rules, jobs, order_cost_summary_rules, others, package_cost_summary_rules, packages, plans, pricing, roles, rule_detail, rule_details, rule_template, rule_templates, sub_task_types, task_types, tasks, tcc_attachments, tcc_job_sales_persons, tcc_languages, tcc_master_data, tcc_projects, tcc_sync_details, tcc_task_attachments, tcc_translation_tasks, tcc_type_settings_tasks, tcc_users, user_requests, user_roles, users.`;
+  //
+  //   const requestBody = {
+  //     contents: [
+  //       {
+  //         parts: [
+  //           {
+  //             text: `${context}\n\n${prompt}`,
+  //           },
+  //         ],
+  //       },
+  //     ],
+  //   };
+  //
+  //   const GEMINI_API_KEY = 'AIzaSyD5YsRKdFhbUxcdmL8ayv2rv2GjvtZO8I0'; // Replace with env var in production
+  //   const GEMINI_ENDPOINT =
+  //     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  //
+  //   return await firstValueFrom(
+  //     this.httpService.post(GEMINI_ENDPOINT, requestBody, {
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'X-goog-api-key': GEMINI_API_KEY,
+  //       },
+  //     }),
+  //   );
+  // }
 
   private getTools() {
     return [
