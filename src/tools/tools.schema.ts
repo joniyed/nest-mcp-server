@@ -21,7 +21,7 @@ export const queryExecutorJSON = {
   properties: {
     sql: {
       type: 'string',
-      description: 'The raw SQL query string to execute against the PostgreSQL database. Use $1, $2, ... for parameters.',
+      description: 'A raw SQL query to retrieve data from the PostgreSQL database. Use $1, $2, etc. for parameters.',
     },
     params: {
       type: 'array',
