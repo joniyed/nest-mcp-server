@@ -123,12 +123,6 @@ export class McpService {
               '-- Table: email_tags (Tags for emails)\n' +
               '-- Columns: id BIGINT (PK), name CHARACTER VARYING(255), created_at BIGINT, updated_at BIGINT\n' +
               '\n' +
-              '-- Table: email (Simplified email address mapping)\n' +
-              '-- Columns: id INTEGER (PK), address CHARACTER VARYING\n' +
-              '\n' +
-              '-- Table: job (Basic job information)\n' +
-              '-- Columns: id INTEGER (PK), name CHARACTER VARYING\n' +
-              '\n' +
               '-- Table: job-list (Summary of jobs with status and billing details)\n' +
               '-- Columns: id BIGINT (PK), project_name CHARACTER VARYING(100), project_id BIGINT, job_status CHARACTER VARYING(50), billing_status CHARACTER VARYING(50), sales CHARACTER VARYING(50), inactive_days CHARACTER VARYING(20), created_at_date BIGINT, created_at_time BIGINT\n' +
               '\n' +
@@ -228,12 +222,6 @@ export class McpService {
               '-- Table: roles (User roles)\n' +
               '-- Columns: id BIGINT (PK), role_name CHARACTER VARYING(100)\n' +
               '\n' +
-              '-- Table: rule_detail (Potentially an alias or older version of rule_details)\n' +
-              '-- Columns: id BIGINT (PK), name CHARACTER VARYING(255), category CHARACTER VARYING(100)\n' +
-              '\n' +
-              '-- Table: rule_template (Potentially an alias or older version of rule_templates)\n' +
-              '-- Columns: id BIGINT (PK), name CHARACTER VARYING(255), product_type CHARACTER VARYING(50)\n' +
-             '\n' +
               '-- Table: user_requests (User requests log)\n' +
               '-- Columns: id BIGINT (PK), user_id BIGINT (FK to users.id), request_type CHARACTER VARYING(100), request_details TEXT, requested_at BIGINT\n' +
               '\n' +
