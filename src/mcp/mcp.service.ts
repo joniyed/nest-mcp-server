@@ -1,15 +1,180 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { queryExecutorJSON, subJSON, sumJSON } from '../tools/tools.schema.js';
+import { queryExecutorJSON, subJSON, sumJSON, simpleReplyJSON } from '../tools/tools.schema.js';
 import { ToolsService } from '../tools/tools.service.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
 
 @Injectable()
 export class McpService {
+  private server: Server;
+
   constructor(
     private readonly httpService: HttpService,
     private readonly toolsService: ToolsService,
-  ) {}
+  ) {
+    this.server = new Server(
+      {
+        name: 'nest-mcp-server',
+        version: '1.0.0',
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      },
+    );
+
+    this.setupHandlers();
+  }
+
+  private setupHandlers() {
+    // List available tools
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [
+        {
+          name: 'simple_reply',
+          description:
+            'Provides simple text replies for basic interactions like greetings',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              message: {
+                type: 'string',
+                description: 'The message to respond to',
+              },
+            },
+            required: ['message'],
+          },
+        },
+        {
+          name: 'sum',
+          description: 'Add two numbers',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              a: { type: 'number', description: 'First number' },
+              b: { type: 'number', description: 'Second number' },
+            },
+            required: ['a', 'b'],
+          },
+        },
+        {
+          name: 'sub',
+          description: 'Subtract two numbers',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              a: { type: 'number', description: 'First number' },
+              b: { type: 'number', description: 'Second number' },
+            },
+            required: ['a', 'b'],
+          },
+        },
+        {
+          name: 'execute_raw_query',
+          description: 'Execute a raw SQL query against the database',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sql: { type: 'string', description: 'SQL query to execute' },
+              params: {
+                type: 'array',
+                description: 'Query parameters',
+                items: { type: 'any' },
+              },
+            },
+            required: ['sql'],
+          },
+        },
+      ],
+    }));
+
+    // Handle tool calls
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+
+      try {
+        if (!args) {
+          throw new Error('No arguments provided');
+        }
+
+        let toolResponse;
+
+        switch (name) {
+          case 'simple_reply':
+            toolResponse = this.toolsService.simpleReply(args.message as string);
+            break;
+
+          case 'sum':
+            toolResponse = this.toolsService.sum({
+              a: args.a as number,
+              b: args.b as number
+            });
+            break;
+
+          case 'sub':
+            toolResponse = this.toolsService.sub({
+              a: args.a as number,
+              b: args.b as number
+            });
+            break;
+
+          case 'execute_raw_query':
+            toolResponse = await this.toolsService.executeRawQuery(
+              args.sql as string,
+              args.params as any[],
+            );
+            break;
+
+          default:
+            throw new Error(`Unknown tool: ${name}`);
+        }
+
+        // Return standardized response format
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(toolResponse, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: false,
+                data: null,
+                message: 'Tool execution failed',
+                toolName: name,
+                timestamp: new Date().toISOString(),
+                error: error.message,
+              }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    });
+  }
+
+  async start() {
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    console.log('🚀 MCP Server started');
+  }
+
+  getServer() {
+    return this.server;
+  }
 
   async queryLLM(prompt: string, retryCount = 0): Promise<any> {
     const tools = this.getTools();
@@ -19,65 +184,76 @@ export class McpService {
       const data = response.data;
       console.log('LLM Response: ' + JSON.stringify(data.message));
 
-      let res = new Map<string, any>();
-
       if (data.message?.tool_calls?.length) {
-        for (const toolCall of data.message.tool_calls) {
-          try {
-            if (toolCall.function.name === 'sum') {
-              const { a, b } = toolCall.function.arguments;
-              const resultResponse = this.toolsService.sum({ a, b });
-              res.set('sum', resultResponse);
-            }
+        // Get the first tool call (assuming single tool execution)
+        const toolCall = data.message.tool_calls[0];
 
-            if (toolCall.function.name === 'sub') {
-              const { a, b } = toolCall.function.arguments;
-              const resultResponse = this.toolsService.sub({ a, b });
-              res.set('sub', resultResponse);
-            }
+        try {
+          let toolResponse;
 
-            if (toolCall.function.name === 'executeRawQuery') {
-              const { sql, params } = toolCall.function.arguments;
-              const resultResponse = await this.toolsService.executeRawQuery(
-                sql,
-                params,
-              );
-              res.set('Query Result', resultResponse);
-            }
-          } catch (toolError) {
-            console.warn(
-              `❗ Tool execution failed for ${toolCall.function.name}:`,
-              toolError.message || toolError,
-            );
+          if (toolCall.function.name === 'simple_reply') {
+            const { message } = toolCall.function.arguments;
+            toolResponse = this.toolsService.simpleReply(message);
+          } else if (toolCall.function.name === 'sum') {
+            const { a, b } = toolCall.function.arguments;
+            toolResponse = this.toolsService.sum({ a, b });
+          } else if (toolCall.function.name === 'sub') {
+            const { a, b } = toolCall.function.arguments;
+            toolResponse = this.toolsService.sub({ a, b });
+          } else if (toolCall.function.name === 'executeRawQuery') {
+            const { sql, params } = toolCall.function.arguments;
+            toolResponse = await this.toolsService.executeRawQuery(sql, params);
+          }
 
-            if (retryCount < 10) {
-              // Retry by calling queryLLM again with the error context
-              const retryPrompt = `An error occurred while executing the tool "${toolCall.function.name}": ${toolError.message || toolError}. Please try again or suggest an alternative.`;
-              return this.queryLLM(
-                `${retryPrompt}. Original Prompt: ${prompt}`,
-              );
-            } else {
-              return {
-                response: `Failed after retrying tool "${toolCall.function.name}".`,
-                error: toolError.message || toolError.toString(),
-              };
-            }
+          // Return the direct tool response without wrapper
+          return toolResponse;
+
+        } catch (toolError) {
+          console.warn(
+            `❗ Tool execution failed for ${toolCall.function.name}:`,
+            toolError.message || toolError,
+          );
+
+          if (retryCount < 10) {
+            const retryPrompt = `An error occurred while executing the tool "${toolCall.function.name}": ${toolError.message || toolError}. Please try again or suggest an alternative.`;
+            return this.queryLLM(`${retryPrompt}. Original Prompt: ${prompt}`);
+          } else {
+            return {
+              success: false,
+              data: {
+                result: null,
+                details: { originalPrompt: prompt }
+              },
+              message: `Failed after retrying tool "${toolCall.function.name}"`,
+              toolName: toolCall.function.name,
+              timestamp: new Date().toISOString(),
+              error: toolError.message || toolError.toString(),
+            };
           }
         }
-
-        // const result = await this.sendTextToLLM(
-        //   `Prompt: ${prompt}, Query: ${JSON.stringify(Object.fromEntries(res))}. I want this response as human readable text. Give only the response without any additional text.`,
-        // );
-        return Object.fromEntries(res);
       }
 
       return {
-        response: data.message?.content || 'No response from LLM',
+        success: true,
+        data: {
+          result: data.message?.content || 'No response from LLM',
+          details: { prompt }
+        },
+        message: 'Direct LLM response',
+        toolName: 'llm_response',
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error('Error querying LLM:', error);
       return {
-        response: 'Failed to query LLM or execute tool',
+        success: false,
+        data: {
+          result: null,
+          details: { prompt }
+        },
+        message: 'Failed to query LLM',
+        toolName: 'llm_query',
+        timestamp: new Date().toISOString(),
         error: error.message || error.toString(),
       };
     }
@@ -143,9 +319,17 @@ export class McpService {
       {
         type: 'function',
         function: {
+          name: 'simple_reply',
+          description: 'Provides simple text replies for basic interactions like greetings, farewells, and casual conversation',
+          parameters: simpleReplyJSON,
+        },
+      },
+      {
+        type: 'function',
+        function: {
           name: 'sum',
           description: 'Calculates the sum of two numbers',
-          parameters: sumJSON, // Make sure sumJSON is correctly defined JSON Schema
+          parameters: sumJSON,
         },
       },
       {
@@ -153,7 +337,7 @@ export class McpService {
         function: {
           name: 'sub',
           description: 'Calculates the sub of two numbers',
-          parameters: subJSON, // Make sure sumJSON is correctly defined JSON Schema
+          parameters: subJSON,
         },
       },
       {
@@ -161,7 +345,7 @@ export class McpService {
         function: {
           name: 'executeRawQuery',
           description: 'Executes a raw SQL query with parameters',
-          parameters: queryExecutorJSON, // Make sure sumJSON is correctly defined JSON Schema
+          parameters: queryExecutorJSON,
         },
       },
     ];
