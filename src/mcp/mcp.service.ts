@@ -265,6 +265,7 @@ export class McpService {
   ) {
     return await firstValueFrom(
       this.httpService.post('http://192.168.10.28:11434/api/chat', {
+        // model: 'gpt-oss:120b', // Ensure this model supports tool-calling
         model: 'llama3.1', // Ensure this model supports tool-calling
         messages: [
           {
