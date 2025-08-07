@@ -1,8 +1,14 @@
 export const sumJSON = {
   type: 'object',
   properties: {
-    a: { type: 'number', description: 'The first number' },
-    b: { type: 'number', description: 'The second number' },
+    a: {
+      type: 'number',
+      description: 'First number to add',
+    },
+    b: {
+      type: 'number',
+      description: 'Second number to add',
+    },
   },
   required: ['a', 'b'],
 };
@@ -10,8 +16,14 @@ export const sumJSON = {
 export const subJSON = {
   type: 'object',
   properties: {
-    a: { type: 'number', description: 'The first number' },
-    b: { type: 'number', description: 'The second number' },
+    a: {
+      type: 'number',
+      description: 'First number (minuend)',
+    },
+    b: {
+      type: 'number',
+      description: 'Second number (subtrahend)',
+    },
   },
   required: ['a', 'b'],
 };
@@ -21,17 +33,26 @@ export const queryExecutorJSON = {
   properties: {
     sql: {
       type: 'string',
-      description: 'A raw SQL query to retrieve data from the PostgreSQL database. Use $1, $2, etc. for parameters.',
+      description: 'SQL query to execute',
     },
     params: {
       type: 'array',
-      description: 'Optional array of parameters to replace positional placeholders in the SQL query.',
+      description: 'Query parameters',
       items: {
-        type: ['string', 'number', 'boolean', 'null'],
-        description: 'Each parameter corresponds to a positional placeholder in the SQL query.',
+        type: 'string',
       },
-      default: [],
     },
   },
   required: ['sql'],
+};
+
+export const simpleReplyJSON = {
+  type: 'object',
+  properties: {
+    message: {
+      type: 'string',
+      description: 'The message to respond to',
+    },
+  },
+  required: ['message'],
 };
