@@ -86,20 +86,23 @@ export class ToolsService {
 
       // Filter out null or undefined values
       if (Array.isArray(params)) {
-        params = params.filter((item) => item !== null && item !== undefined);
+        params = params.filter((item) => item !== null && item !== undefined).map((item) => item.trim());
       } else {
         params = [];
       }
 
       // Check if query contains any parameter placeholders (e.g., $1, $2, etc.)
-      const hasPlaceholders = /\$\d+/.test(sql);
+      const hasPlaceholders = /\$\d+|\?/.test(sql);
 
       // If no placeholders, ignore parameters
       if (!hasPlaceholders) {
         params = [];
       }
 
-      const result = await this.dataSource.query(sql, params);
+      let index = 0;
+      const converted = sql.replace(/\?/g, () => `$${++index}`);
+
+      const result = await this.dataSource.query(converted, params);
 
       return {
         success: true,

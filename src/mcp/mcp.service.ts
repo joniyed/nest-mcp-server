@@ -498,7 +498,8 @@ export class McpService {
               '-- User: "What are the names of packages and their associated total final prices, if available?"\n' +
               '-- SQL: SELECT p.id AS package_id, pr.final_price FROM packages p LEFT JOIN external_cost_summaries ecs ON p.external_cost_summary_id = ecs.id LEFT JOIN pricing pr ON ecs.id = pr.external_cost_summary_id;\n' +
               '\n' +
-              'Remember to analyze the user\'s full intent and determine all necessary tables and joins before generating the final SQL.'
+              'Remember to analyze the user\'s full intent and determine all necessary tables and joins before generating the final SQL.'+
+            '\n **NOTE** If the generated query has parameter, generate it like this: $1 $2 ...etc even it has only 1 parameter. Donot generate like ?. Give like $1'
 
           },
           { role: 'user', content: prompt },
