@@ -587,6 +587,8 @@ export class McpService {
         }),
       );
 
+
+
       return response.data?.message?.content;
     } catch (error) {
       console.error('LLM Error:', error.message, error.response?.data); // Debug log
