@@ -1,18 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { queryExecutorJSON, subJSON, sumJSON, simpleReplyJSON } from '../tools/tools.schema.js';
+import { queryExecutorJSON, simpleReplyJSON, subJSON, sumJSON } from '../tools/tools.schema.js';
 import { ToolsService } from '../tools/tools.service.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { jobs_context } from './table-contexts/jobs_context.js';
+import { TableContext } from './table-contexts/index.js';
+import { emailFilesContext } from './table-contexts/email_files.context.js';
 
 @Injectable()
 export class McpService {
-  private server: Server;
+  private readonly server: Server;
 
   constructor(
     private readonly httpService: HttpService,
@@ -29,7 +29,6 @@ export class McpService {
         },
       },
     );
-
     this.setupHandlers();
   }
 
@@ -114,14 +113,14 @@ export class McpService {
           case 'sum':
             toolResponse = this.toolsService.sum({
               a: args.a as number,
-              b: args.b as number
+              b: args.b as number,
             });
             break;
 
           case 'sub':
             toolResponse = this.toolsService.sub({
               a: args.a as number,
-              b: args.b as number
+              b: args.b as number,
             });
             break;
 
@@ -222,7 +221,7 @@ export class McpService {
               success: false,
               data: {
                 result: null,
-                details: { originalPrompt: prompt }
+                details: { originalPrompt: prompt },
               },
               message: `Failed after retrying tool "${toolCall.function.name}"`,
               toolName: toolCall.function.name,
@@ -237,7 +236,7 @@ export class McpService {
         success: true,
         data: {
           result: data.message?.content || 'No response from LLM',
-          details: { prompt }
+          details: { prompt },
         },
         message: 'Direct LLM response',
         toolName: 'llm_response',
@@ -249,7 +248,7 @@ export class McpService {
         success: false,
         data: {
           result: null,
-          details: { prompt }
+          details: { prompt },
         },
         message: 'Failed to query LLM',
         toolName: 'llm_query',
@@ -270,61 +269,7 @@ export class McpService {
         messages: [
           {
             role: 'system',
-            // In McpService, sendPromptToLLM method, within the system role content:
-            content:
-              'Context: ' +
-              '\n' +
-              'You are an expert PostgreSQL query generator. Your task is to translate user requests into precise and efficient SQL queries using the provided database schema. Always prioritize selecting relevant columns, applying correct JOIN operations, and filtering data accurately based on the user\'s intent. Pay close attention to data types and potential case sensitivity for string comparisons.\n' +
-              '\n' +
-              'Postgres Tables:\n' +
-              'sub_task_types, task_types, tasks\n' +
-              '\n' +
-              'PostgreSQL Database Schema Details:\n' +
-
-              '-- Table: tasks (Details of tasks, linked to jobs and email)\n' +
-              '-- Columns: id BIGINT (PK), task_identity BIGINT, row_version CHARACTER VARYING(100), language CHARACTER VARYING(100), creation_date BIGINT, modified_date BIGINT, created_by BIGINT (FK to users.id), modified_by BIGINT (FK to users.id), task_type_id BIGINT (FK to task_types.id), status CHARACTER VARYING(100), task_id CHARACTER VARYING(255), expected_tat_datetime BIGINT, total_number_of_pages INTEGER, proof_read_by_id BIGINT (FK to users.id), email_id BIGINT (FK to emails.id), task_completion_date BIGINT, previous_status BIGINT, tera_task_id BIGINT, created_at BIGINT, updated_at BIGINT, sub_task_type_id BIGINT (FK to sub_task_types.id), job_id BIGINT (FK to jobs.id)\n' +
-              '\n' +
-              '-- Table: task_types (Defines different types of tasks)\n' +
-              '-- Columns: id BIGINT (PK), task_type_id BIGINT, creation_date BIGINT, modified_date BIGINT, name CHARACTER VARYING(100), created_at BIGINT, updated_at BIGINT\n' +
-              '\n' +
-              '-- Table: sub_task_types (Defines sub-types for tasks)\n' +
-              '-- Columns: id BIGINT (PK), sub_task_type_id BIGINT, name CHARACTER VARYING(100), creation_date BIGINT, modified_date BIGINT, created_at BIGINT, updated_at BIGINT\n' +
-              '\n' +
-              '-----------------------------------------------------------\n' +
-              '-- Table Relationships (Foreign Keys for JOIN operations):\n' +
-              '-----------------------------------------------------------\n' +
-
-              '-- tasks.task_type_id -> task_types.id\n' +
-              '-- tasks.proof_read_by_id -> users.id\n' +
-              '-- tasks.email_id -> emails.id\n' +
-              '-- tasks.sub_task_type_id -> sub_task_types.id\n' +
-
-              '\n' +
-              'General Querying Guidelines for the LLM:\n' +
-              '- **Date/Time Conversion**: All `BIGINT` columns representing timestamps (`created_at`, `updated_at`, `received_at`, `creation_date`, `modified_date`, `reply_date`, `last_email_time`, `date`, `time`, `expected_tat_datetime`, `task_completion_date`, `changed_at`, `release_date`, `requested_at`) are Unix timestamps (seconds or milliseconds since epoch). When a user asks for human-readable dates or filters by date ranges, convert these to standard SQL date/time functions (e.g., `to_timestamp`, `FROM_UNIXTIME`, `DATE_TRUNC`). For example, to filter by month, use functions like `DATE_TRUNC(\'month\', to_timestamp(created_at)) = DATE_TRUNC(\'month\', NOW())`.\n' +
-              '- **Joins**: Automatically identify and use `INNER JOIN` or `LEFT JOIN` clauses where foreign key relationships (explicitly listed in the "Table Relationships" section or indicated by "FK to Table.Column" in column details) exist and are necessary to fulfill the query (e.g., getting email subject for a task, or job details for an email).\n' +
-              '- **Case Sensitivity**: For `TEXT` and `CHARACTER VARYING` columns, assume case-insensitive matching for user queries unless specified (e.g., use `ILIKE` instead of `=` for `status`, `category`, `name`, `subject`, `sender`, `file_name`, `tag_name`, `rule_name`, `project_name`, `job_name`, `role_name`, `description`, `language_code`). However, for specific exact matches, `=` is acceptable if the user implies strictness.\n' +
-              '- **Aggregations**: Use `COUNT(*)`, `SUM()`, `AVG()`, `MIN()`, `MAX()` with appropriate `GROUP BY` clauses for statistical queries.\n' +
-              '- **Filtering**: Apply `WHERE` clauses for all filtering conditions. Use `AND` / `OR` as needed.\n' +
-              '- **Limiting Results**: Always include `LIMIT X` when the user asks for a specific number of results (e.g., "first 5", "top 10").\n' +
-              '- **Ordering Results**: Include `ORDER BY` when the user specifies an order (e.g., "newest first", "by price").\n' +
-              '- **Boolean Interpretation**: If a column seems to imply a boolean (e.g., any `is_` or `has_` prefixed columns you might add), map common terms like "yes", "no", "true", "false", "active", "inactive" appropriately.\n' +
-              '- **Ambiguity**: If a column name is ambiguous (e.g., multiple `id`s), use table aliases to clarify (e.g., `e.id` for `emails.id`).\n' +
-              '- **Table Name Nuances**: \n' +
-              '\n' +
-              'Example Complex Query Generation (for reference and guidance):\n' +
-              '-- User: "Give me first 5 tasks which status is  \'Completed\'."\n' +
-              '-- SQL: SELECT DISTINCT e.subject, e.sender FROM emails e JOIN email_files ef ON e.id = ef.email_id JOIN email_job_mappers ejm ON e.id = ejm.email_id JOIN jobs j ON ejm.job_id = j.id WHERE j.job_status ILIKE \'Active\';\n' +
-              '\n' +
-              '-- User: "Count how many tasks with status \'Completed\' were created by users named \'John Doe\' this month."\n' +
-              '-- SQL: SELECT COUNT(t.id) FROM tasks t JOIN users u ON t.created_by = u.id WHERE t.status ILIKE \'Completed\' AND u.name ILIKE \'John Doe\' AND to_timestamp(t.creation_date) >= DATE_TRUNC(\'month\', NOW()) AND to_timestamp(t.creation_date) < DATE_TRUNC(\'month\', NOW()) + INTERVAL \'1 month\';\n' +
-              '\n' +
-              '-- User: "Give me the tasks which task_id is " \'HIP23020014TY000615\ ."\n' +
-              '-- SQL: SELECT rd.rule_name, rd.category, rt.name AS template_name, j.job_name FROM rule_details rd JOIN rule_templates rt ON rd.template_id = rt.id LEFT JOIN jobs j ON rt.job_id = j.id WHERE rd.category ILIKE \'Translation\';\n' +
-              '\n' +
-              'Remember to analyze the user\'s full intent and determine all necessary tables and joins before generating the final SQL.'+
-              '\n **NOTE** If the generated query has parameter, generate it like this: $1 $2 ...etc even it has only 1 parameter. Donot generate like ?. Give like $1'
-
+            content: this.getTableContexts(['tasks']),
           },
           { role: 'user', content: prompt },
         ],
@@ -418,5 +363,54 @@ export class McpService {
         `Failed to communicate with LLM: ${error.message}`,
       );
     }
+  }
+
+  // Utility to get context for required tables
+  private getTableContexts(tableNames: string[]): string {
+    const contextMap: Record<string, string> = {
+      emails: TableContext.emailContext,
+      jobs: jobs_context,
+      email_files: emailFilesContext,
+      email_replies: emailRepliesContext,
+      users: usersContext,
+      rule_details: ruleDetailsContext,
+      rule_templates: ruleTemplatesContext,
+      plans: plansContext,
+      tasks: tasksContext,
+      job_rules: jobRulesContext,
+      cost_summary_rules: costSummaryRulesContext,
+      billable_items: billableItemsContext,
+      job_activity: jobActivityContext,
+      job_activity_logs: jobActivityLogsContext,
+      conditions: conditionsContext,
+      cost_summary_rule_tasks: costSummaryRuleTasksContext,
+      cost_summary_rules_task_list_tasks: costSummaryRulesTaskListTasksContext,
+      order_cost_summary_rules: orderCostSummaryRulesContext,
+      package_cost_summary_rules: packageCostSummaryRulesContext,
+      packages: packagesContext,
+      pricing: pricingContext,
+      additional_cost_summary_rules: additionalCostSummaryRulesContext,
+      external_cost_summaries: externalCostSummariesContext,
+      ai_models: aiModelsContext,
+      ai_model_versions: aiModelVersionsContext,
+      ai_model_version_change_history: aiModelVersionChangeHistoryContext,
+      client_view: clientViewContext,
+      roles: rolesContext,
+      user_requests: userRequestsContext,
+      user_roles: userRolesContext,
+      tcc_attachments: tccAttachmentsContext,
+      tcc_job_sales_persons: tccJobSalesPersonsContext,
+      tcc_languages: tccLanguagesContext,
+      tcc_master_data: tccMasterDataContext,
+      tcc_projects: tccProjectsContext,
+      tcc_sync_details: tccSyncDetailsContext,
+      tcc_task_attachments: tccTaskAttachmentsContext,
+      tcc_translation_tasks: tccTranslationTasksContext,
+      tcc_type_settings_tasks: tccTypeSettingsTasksContext,
+      tcc_users: tccUsersContext,
+      task_types: taskTypesContext,
+      sub_task_types: subTaskTypesContext,
+    };
+    return tableNames.map(t => contextMap[t]).filter(Boolean).join('\n');
   }
 }

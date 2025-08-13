@@ -15,6 +15,6 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
   },
-  "include": ["src/**/*.ts", "mcp-stdio.ts"], // <-- Add "mcp-stdio.ts" here
+  "include": ["src/**/*.ts", "src/mcp/table-contexts/*.ts", "mcp-stdio.ts"], // <-- Add table-contexts to include
   "exclude": ["node_modules", "dist"] // Ensure 'dist' is excluded from source
 }
