@@ -9,6 +9,44 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { jobs_context } from './table-contexts/jobs_context.js';
 import { TableContext } from './table-contexts/index.js';
 import { emailFilesContext } from './table-contexts/email_files.context.js';
+import { emailRepliesContext } from './table-contexts/email_replies.context.js';
+import { usersContext } from './table-contexts/users.context.js';
+import { ruleDetailsContext } from './table-contexts/rule_details.context.js';
+import { ruleTemplatesContext } from './table-contexts/rule_templates.context.js';
+import { plansContext } from './table-contexts/plans.context.js';
+import { tasksContext } from './table-contexts/tasks.context.js';
+import { jobRulesContext } from './table-contexts/job_rules.context.js';
+import { costSummaryRulesContext } from './table-contexts/cost_summary_rules.context.js';
+import { billableItemsContext } from './table-contexts/billable_items.context.js';
+import { jobActivityContext } from './table-contexts/job_activity.context.js';
+import { jobActivityLogsContext } from './table-contexts/job_activity_logs.context.js';
+import { conditionsContext } from './table-contexts/conditions.context.js';
+import { costSummaryRulesTaskListTasksContext } from './table-contexts/cost_summary_rules_task_list_tasks.context.js';
+import { orderCostSummaryRulesContext } from './table-contexts/order_cost_summary_rules.context.js';
+import { packageCostSummaryRulesContext } from './table-contexts/package_cost_summary_rules.context.js';
+import { packagesContext } from './table-contexts/packages.context.js';
+import { pricingContext } from './table-contexts/pricing.context.js';
+import { additionalCostSummaryRulesContext } from './table-contexts/additional_cost_summary_rules.context.js';
+import { externalCostSummariesContext } from './table-contexts/external_cost_summaries.context.js';
+import { aiModelsContext } from './table-contexts/ai_models.context.js';
+import { aiModelVersionsContext } from './table-contexts/ai_model_versions.context.js';
+import { aiModelVersionChangeHistoryContext } from './table-contexts/ai_model_version_change_history.context.js';
+import { clientViewContext } from './table-contexts/client_view.context.js';
+import { rolesContext } from './table-contexts/roles.context.js';
+import { userRequestsContext } from './table-contexts/user_requests.context.js';
+import { userRolesContext } from './table-contexts/user_roles.context.js';
+import { tccAttachmentsContext } from './table-contexts/tcc_attachments.context.js';
+import { tccJobSalesPersonsContext } from './table-contexts/tcc_job_sales_persons.context.js';
+import { tccLanguagesContext } from './table-contexts/tcc_languages.context.js';
+import { tccMasterDataContext } from './table-contexts/tcc_master_data.context.js';
+import { tccProjectsContext } from './table-contexts/tcc_projects.context.js';
+import { tccSyncDetailsContext } from './table-contexts/tcc_sync_details.context.js';
+import { tccTranslationTasksContext } from './table-contexts/tcc_translation_tasks.context.js';
+import { tccTypeSettingsTasksContext } from './table-contexts/tcc_type_settings_tasks.context.js';
+import { tccUsersContext } from './table-contexts/tcc_users.context.js';
+import { taskTypesContext } from './table-contexts/task_types.context.js';
+import { subTaskTypesContext } from './table-contexts/sub_task_types.context.js';
+
 
 @Injectable()
 export class McpService {
@@ -269,7 +307,7 @@ export class McpService {
         messages: [
           {
             role: 'system',
-            content: this.getTableContexts(['tasks']),
+            content: this.getTableContexts([]),
           },
           { role: 'user', content: prompt },
         ],
@@ -383,7 +421,7 @@ export class McpService {
       job_activity: jobActivityContext,
       job_activity_logs: jobActivityLogsContext,
       conditions: conditionsContext,
-      cost_summary_rule_tasks: costSummaryRuleTasksContext,
+      cost_summary_rule_tasks: costSummaryRulesContext,
       cost_summary_rules_task_list_tasks: costSummaryRulesTaskListTasksContext,
       order_cost_summary_rules: orderCostSummaryRulesContext,
       package_cost_summary_rules: packageCostSummaryRulesContext,
@@ -404,7 +442,7 @@ export class McpService {
       tcc_master_data: tccMasterDataContext,
       tcc_projects: tccProjectsContext,
       tcc_sync_details: tccSyncDetailsContext,
-      tcc_task_attachments: tccTaskAttachmentsContext,
+      tcc_task_attachments: tccAttachmentsContext,
       tcc_translation_tasks: tccTranslationTasksContext,
       tcc_type_settings_tasks: tccTypeSettingsTasksContext,
       tcc_users: tccUsersContext,
