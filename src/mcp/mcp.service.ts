@@ -300,19 +300,63 @@ export class McpService {
     prompt: string,
     tools: any[], // Adjust type as needed, e.g., ToolDescription[]
   ) {
+    // Provide ALL table contexts by default
+    const allTableNames = [
+      'emails',
+      'jobs',
+      'email_files',
+      'email_replies',
+      'users',
+      'rule_details',
+      'rule_templates',
+      'plans',
+      'tasks',
+      'job_rules',
+      'cost_summary_rules',
+      'billable_items',
+      'job_activity',
+      'job_activity_logs',
+      'conditions',
+      'cost_summary_rule_tasks',
+      'cost_summary_rules_task_list_tasks',
+      'order_cost_summary_rules',
+      'package_cost_summary_rules',
+      'packages',
+      'pricing',
+      'additional_cost_summary_rules',
+      'external_cost_summaries',
+      'ai_models',
+      'ai_model_versions',
+      'ai_model_version_change_history',
+      'client_view',
+      'roles',
+      'user_requests',
+      'user_roles',
+      'tcc_attachments',
+      'tcc_job_sales_persons',
+      'tcc_languages',
+      'tcc_master_data',
+      'tcc_projects',
+      'tcc_sync_details',
+      'tcc_task_attachments',
+      'tcc_translation_tasks',
+      'tcc_type_settings_tasks',
+      'tcc_users',
+      'task_types',
+      'sub_task_types',
+    ];
     return await firstValueFrom(
       this.httpService.post('http://192.168.68.121:11434/api/chat', {
-        // model: 'gpt-oss:120b', // Ensure this model supports tool-calling
-        model: 'llama3.1', // Ensure this model supports tool-calling
+        model: 'llama3.1',
         messages: [
           {
             role: 'system',
-            content: this.getTableContexts([]),
+            content: this.getTableContexts(allTableNames),
           },
           { role: 'user', content: prompt },
         ],
         tools,
-        stream: false, // Disable streaming for simpler handling
+        stream: false,
       }),
     );
   }
